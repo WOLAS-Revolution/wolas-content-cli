@@ -66,21 +66,20 @@ class Thumbnail
 		image.write "app/images/compress/#{newthumbnail}"
 
 		# calculate the size of the compressed file prior to compression.
-		compressed_size = File.size("app/images/compress/#{newthumbnail}") / 1024.00
+		compressed_size = File.size("./compression/#{newthumbnail}") / 1024.00
 		puts "Compression complete. New file is '#{newthumbnail}' (#{compressed_size.floor}kb)."
 
 		# compute the percentage reduction in size pre and post compression.
 		compression_rate = ((original_size - compressed_size)/original_size) * 100
 		puts "The file was reduced by #{compression_rate.floor}%."
 		
-		##send object to S3 bucket
-
+		# send object to S3 bucket
 		puts "Uploading new thumbnail (#{newthumbnail}) to s3 bucket."
 
 		obj = @thumbnail_bucket.objects["#{newthumbnail}"]
-		obj.write(Pathname.new("app/images/compress/#{newthumbnail}"))
+		obj.write(Pathname.new("./compression/#{newthumbnail}"))
 
-		FileUtils.rm_rf(Dir.glob('app/images/compress/*'))
+		FileUtils.rm_rf(Dir.glob('./compression/*'))
 
 		return newthumbnail
 	end
