@@ -1,5 +1,5 @@
 class Thumbnail
-	#require gems & libraries
+	#require gems & libraries.
 	require 'securerandom'
 	require 'aws-sdk'
 	require 'yaml'
@@ -7,18 +7,20 @@ class Thumbnail
  	require 'mysql2'
  	require 'mini_magick'
 
- 	#require active record models
+ 	#require active record models.
  	require './models/content.rb'
 
+ 	#require any classes that are needed.
  	require './check_existence.rb'
 
  	DB_CONFIG = YAML::load(File.open('./config/database.yml'))
 	ActiveRecord::Base.establish_connection("mysql2://#{DB_CONFIG['username']}:#{DB_CONFIG['password']}@#{DB_CONFIG['host']}:#{DB_CONFIG['port']}/#{DB_CONFIG['database']}")
 
 	def setup
+		#complete initial setup for the script to run. Enter AWS credentials, and the buckets required.
 		AWS.config(YAML.load_file('./config/aws-s3.yaml'))
 		s3 = AWS::S3.new
-		@learning_original = s3.buckets['learningoriginal'] 
+		@original_bucket = s3.buckets['learningoriginal'] 
 		@thumbnail_bucket = s3.buckets['learningthumb'] 
 	end
 
@@ -40,19 +42,22 @@ class Thumbnail
 	end
 
 	def compress(key)
-		newthumbnail = SecureRandom.hex(6) + '.jpg'
 
-		# read an object from S3 to a file
-		File.open('./output.png', 'wb') do |file|
-		  @learning_original.objects[key].read do |chunk|
+		# download the file off s3 to a local directory.
+		File.open('./compresssion/output.png', 'wb') do |file|
+		  @original_bucket.objects[key].read do |chunk|
 		    file.write(chunk)
 		  end
 		end
 
+		# calculate the initial size of the file prior to compression.
 		original_size = File.size('app/images/compress/output.png') / 1024.00
-
 		puts "Commencing compression of file '#{key}' (#{original_size.floor}kb)."
 
+		# commence compression of file locally the initial size of the file.
+		# create a new file (not compressed inline) with a random hex name.
+
+		newthumbnail = SecureRandom.hex(6) + '.jpg'
 		image = MiniMagick::Image.open("app/images/compress/output.png") 
 
 		image.format "jpg"
@@ -60,12 +65,12 @@ class Thumbnail
 		image.resize "40%"
 		image.write "app/images/compress/#{newthumbnail}"
 
+		# calculate the size of the compressed file prior to compression.
 		compressed_size = File.size("app/images/compress/#{newthumbnail}") / 1024.00
-
 		puts "Compression complete. New file is '#{newthumbnail}' (#{compressed_size.floor}kb)."
 
+		# compute the percentage reduction in size pre and post compression.
 		compression_rate = ((original_size - compressed_size)/original_size) * 100
-
 		puts "The file was reduced by #{compression_rate.floor}%."
 		
 		##send object to S3 bucket
