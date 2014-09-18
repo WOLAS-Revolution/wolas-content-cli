@@ -1,0 +1,5 @@
+#ignore everthing in the config folder
+/config
+
+#ignore mac generate ds_store files
+.DS_Store
