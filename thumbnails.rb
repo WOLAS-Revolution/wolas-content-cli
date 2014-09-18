@@ -82,6 +82,7 @@ class Thumbnail
 		FileUtils.rm_rf(Dir.glob('./compression/*'))
 
 		return newthumbnail
+		
 	end
 
 end
