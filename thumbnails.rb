@@ -62,12 +62,11 @@ class Thumbnail
 		compressed_file = ImageCompress.new.compress(original_file, 'thumbnail')
 
 		# send compressed file to S3 bucket
-		#########puts "Uploading new thumbnail (#{compressed_file}) to s3 bucket."
+		puts "Uploading new thumbnail (#{compressed_file}) to s3 bucket."
 
-		#########obj = @thumbnail_bucket.objects["#{compressed_file}"]
-		#########obj.write(Pathname.new("./compression/#{compressed_file}"))
+		obj = @thumbnail_bucket.objects["#{compressed_file}"]
+		obj.write(Pathname.new("./compression/#{compressed_file}"))
 
-		#FileUtils.rm_rf(Dir.glob('./compression/*'))
 	end
 
 
