@@ -12,8 +12,6 @@ class ContentIntegrity
  	# require any classes that are needed.
  	require './check_existence.rb'
 
-
-
  	# expose the ActiveRecord operations to the command line so we can see how we are interfacing with our databases.
  	ActiveRecord::Base.logger = Logger.new(STDOUT)
 
