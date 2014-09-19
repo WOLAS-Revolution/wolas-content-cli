@@ -6,8 +6,8 @@ class ImageCompress
 
 	def compress(file,type)
 		# calculate the initial size of the file prior to compression.
-		original_size = File.size('./compression/output.png') / 1024.00
-		puts "Commencing compression of file '#{key}' (#{original_size.floor}kb)."
+		original_size = File.size("./compression/#{file}.png") / 1024.00
+		puts "Commencing compression of file '#{file}' (#{original_size.floor}kb)."
 
 		# commence compression of file locally the initial size of the file.
 		# create a new file (not compressed inline) with a random hex name.
@@ -15,14 +15,13 @@ class ImageCompress
 		compressed_file = SecureRandom.hex(6) + '.jpg'
 		image = MiniMagick::Image.open("./compression/#{file}.png")
 
-
 		if type == 'thumbnail'
 			specs = get_specs('thumbnail')
 		end
 
-		image.format specs.format
-		image.quality specs.quality
-		image.resize specs.resize
+		image.format specs[0]
+		image.quality specs[1]
+		image.resize specs[2]
 		image.write "./compression/#{compressed_file}"
 
 		# calculate the size of the compressed file prior to compression.
@@ -39,20 +38,12 @@ class ImageCompress
 	def get_specs(type)
 
 		if type == 'thumbnail'
-			specs = { 
-				format = 'jpg', 
-				quality = '50',
-				resize = '40%',
-					}
+			specs = ['jpg', '50', '40%']
 			return specs
 		end
 
 		if type == 'web'
-			specs = { 
-				format = 'jpg', 
-				quality = '50',
-				resize = '40%',
-					}
+			specs = ['jpg', '50', '40%']
 			return specs
 		end
 

@@ -11,6 +11,7 @@ class Thumbnail
 
  	# require any classes that are needed.
  	require './check_existence.rb'
+ 	require './image_compress.rb'
 
  	# expose the ActiveRecord operations to the command line so we can see how we are interfacing with our databases.
  	ActiveRecord::Base.logger = Logger.new(STDOUT)
@@ -27,15 +28,16 @@ class Thumbnail
 	end
 
 	def find
-		unq = Content.where("thumbnail = 'default.png' and type = 'Graphic'")
+		#unq = Content.where("thumbnail = 'default.png' and type = 'Graphic'")
+		unq = Content.where("id = 203")
 		puts "There are #{unq.count} pieces of content that do not have thumbnails."
 
 		unq.each do |record|
 			if CheckExistence.new.check('learningoriginal', record.original) == true
 				puts "Beginning compression process for content #{record.id}."
 				thumbnail = compress(record.original)
-				puts "Updating database with newly compressed thumbnail for record #{record.id}."
-				Content.update(record.id, :thumbnail => thumbnail)
+				#puts "Updating database with newly compressed thumbnail for record #{record.id}."
+				#Content.update(record.id, :thumbnail => thumbnail)
 				puts 'Finished.'
 			elsif CheckExistence.new.check('learningoriginal', record.original) == false
 				puts "The destination file #{record.id} (#{record.original}) was not found on s3. Skipping this file."
@@ -46,12 +48,11 @@ class Thumbnail
 	end
 
 	def compress(key)
-
 		# generate a unique file name for the file we want to compress.
 		original_file = SecureRandom.hex(6) + '.jpg'
 
 		# download the file off s3 to a local directory, name it the hex we created above.
-		File.open("./compression/#{original}.png", 'wb') do |file|
+		File.open("./compression/#{original_file}.png", 'wb') do |file|
 		  @original_bucket.objects[key].read do |chunk|
 		    file.write(chunk)
 		  end
@@ -61,12 +62,13 @@ class Thumbnail
 		compressed_file = ImageCompress.new.compress(original_file, 'thumbnail')
 
 		# send compressed file to S3 bucket
-		puts "Uploading new thumbnail (#{compressed_file}) to s3 bucket."
+		#########puts "Uploading new thumbnail (#{compressed_file}) to s3 bucket."
 
-		obj = @thumbnail_bucket.objects["#{compressed_file}"]
-		obj.write(Pathname.new("./compression/#{compressed_file}"))
+		#########obj = @thumbnail_bucket.objects["#{compressed_file}"]
+		#########obj.write(Pathname.new("./compression/#{compressed_file}"))
 
 		#FileUtils.rm_rf(Dir.glob('./compression/*'))
-
 	end
+
+
 end
