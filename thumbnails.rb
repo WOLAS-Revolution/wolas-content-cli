@@ -13,6 +13,9 @@ class Thumbnail
  	#require any classes that are needed.
  	require './check_existence.rb'
 
+ 	#expose the ActiveRecord operations to the command line so we can see how we are interfacing with our databases.
+ 	ActiveRecord::Base.logger = Logger.new(STDOUT)
+
  	DB_CONFIG = YAML::load(File.open('./config/database.yml'))
 	ActiveRecord::Base.establish_connection("mysql2://#{DB_CONFIG['username']}:#{DB_CONFIG['password']}@#{DB_CONFIG['host']}:#{DB_CONFIG['port']}/#{DB_CONFIG['database']}")
 
@@ -25,18 +28,20 @@ class Thumbnail
 	end
 
 	def find
-		unq = Content.where("thumbnail = 'default.png' and type = 'Graphic' and id")
+		unq = Content.where("thumbnail = 'default.png' and type = 'Graphic'").limit(1)
 		puts "There are #{unq.count} pieces of content that do not have thumbnails."
 
 		unq.each do |record|
-			if CheckExistence.check('learningoriginal', record.original) == true
+			if CheckExistence.new.check('learningoriginal', record.original) == true
 				puts "Beginning compression process for content #{record.id}."
 				thumbnail = compress(record.original)
 				puts "Updating database with newly compressed thumbnail for record #{record.id}."
 				Content.update(record.id, :thumbnail => thumbnail)
 				puts 'Finished.'
+			elsif CheckExistence.new.check('learningoriginal', record.original) == false
+				puts "The destination file #{record.id} (#{record.original}) was not found on s3. Skipping this file."
 			else
-				puts "The destination file #{record.id} was not found on s3. Skipping this file."
+				puts "There was an error interfacing with s3 to check if the objects exists."
 			end
 		end
 	end
@@ -44,26 +49,26 @@ class Thumbnail
 	def compress(key)
 
 		# download the file off s3 to a local directory.
-		File.open('./compresssion/output.png', 'wb') do |file|
+		File.open('./compression/output.png', 'wb') do |file|
 		  @original_bucket.objects[key].read do |chunk|
 		    file.write(chunk)
 		  end
 		end
 
 		# calculate the initial size of the file prior to compression.
-		original_size = File.size('app/images/compress/output.png') / 1024.00
+		original_size = File.size('./compression/output.png') / 1024.00
 		puts "Commencing compression of file '#{key}' (#{original_size.floor}kb)."
 
 		# commence compression of file locally the initial size of the file.
 		# create a new file (not compressed inline) with a random hex name.
 
 		newthumbnail = SecureRandom.hex(6) + '.jpg'
-		image = MiniMagick::Image.open("app/images/compress/output.png") 
+		image = MiniMagick::Image.open("./compression/output.png") 
 
 		image.format "jpg"
 		image.quality "50"
 		image.resize "40%"
-		image.write "app/images/compress/#{newthumbnail}"
+		image.write "./compression/#{newthumbnail}"
 
 		# calculate the size of the compressed file prior to compression.
 		compressed_size = File.size("./compression/#{newthumbnail}") / 1024.00
@@ -82,7 +87,6 @@ class Thumbnail
 		FileUtils.rm_rf(Dir.glob('./compression/*'))
 
 		return newthumbnail
-		
-	end
 
+	end
 end
