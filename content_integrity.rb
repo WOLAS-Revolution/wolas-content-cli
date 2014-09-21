@@ -80,7 +80,7 @@ class ContentIntegrity
 
 		# this method is used to check our external files that our system depends on for learning material.
 		# we are going to hit every URL that we have, and ensure we receive a 200 response back
-		# to ensure the endpoint is health.
+		# to ensure the endpoint is healthy.
 
 		total_to_be_checked = recordset.count
 		puts "There are #{total_to_be_checked} URLs to that will be checked for 200 response."
@@ -99,6 +99,7 @@ class ContentIntegrity
 				puts "Checking for content #{record.id}"
 
 				# lets check for 200 status code the destination URL.
+				# if the response is not 200, we want to log it.
 
 				if res.code != '200'
 					puts "The destination URL ('#{record.external}') returned status code '#{res.code}'"
@@ -106,8 +107,7 @@ class ContentIntegrity
 			 	end
 					
 			rescue Exception => e
-				# if URL was for some reason not able to be pinged, and thus no response.
-
+				# if URL was for some reason not able to be pinged, and thus no response, add it to the missing array
 				@missing << "#{record.external} URL was failed to be pinged. Check that its a valid address. ('#{e}')."
 				
 			end

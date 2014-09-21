@@ -1,5 +1,8 @@
 require 'aws-sdk'
 
+# This is a very simple class that simply checks for an s3 item in our
+# S3 bucket repositories. It can be used for any filetype.
+
 class CheckExistence
 	def check (bucket, filename)
 		AWS.config(YAML.load_file('./config/aws-s3.yaml'))

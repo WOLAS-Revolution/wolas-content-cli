@@ -76,7 +76,7 @@ class Thumbnail
 		# (this is used to determine compression settings.)
 		compressed_file = ImageCompress.new.compress(original_file, @compression_type)
 
-		# # send compressed file to S3 bucket.
+		# send compressed file to S3 bucket.
 		puts "Uploading new file (#{compressed_file}) to s3 bucket(#{@desintation_bucket})."
 		obj = @bucket_out.objects["#{compressed_file}"]
 		obj.write(Pathname.new("./compression/#{compressed_file}"))
