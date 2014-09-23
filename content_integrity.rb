@@ -39,6 +39,11 @@ class ContentIntegrity
 		#lets check that all of our web versions in our db exist in s3.
 		check(:web,:learningcontent,records_to_check)
 
+		records_to_check = Content.all
+		puts 'Commencing thumbnail checks'
+		#lets check that all of our HTTP endpoints are healthy.
+		check(:thumbnail ,:learningthumb,records_to_check)
+
 		records_to_check = Content.where("type = 'link'")
 		puts 'Commencing external checks'
 		#lets check that all of our HTTP endpoints are healthy.
