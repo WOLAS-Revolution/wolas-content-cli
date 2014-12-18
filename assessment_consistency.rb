@@ -1,7 +1,4 @@
-
-
 class AssessmentConsistency
-
 
  	# require active record models.
  	require './models/assessment.rb'
@@ -10,6 +7,9 @@ class AssessmentConsistency
  	require './models/item_group.rb'
  	require './models/item_stack.rb'
  	require './models/stack.rb'
+ 	require './models/enrol.rb'
+ 	require './models/submission.rb'
+ 	require './models/answer.rb'
 
  	# expose the ActiveRecord operations to the command line so we can see how we are interfacing with our databases.
  	ActiveRecord::Base.logger = Logger.new(STDOUT)
@@ -17,150 +17,132 @@ class AssessmentConsistency
  	DB_CONFIG = YAML::load(File.open('./config/database.yml'))
 	ActiveRecord::Base.establish_connection("mysql2://#{DB_CONFIG['username']}:#{DB_CONFIG['password']}@#{DB_CONFIG['host']}:#{DB_CONFIG['port']}/#{DB_CONFIG['database']}")
 
-	def commence 
+	def commence
 
-		# loop through each assessment
-			# get all the item_stack items 
-			# get all the item_group items
-			# count both and ensure they are the same.
+		all_assessments = Assessment.all
+		puts "#{all_assessments.count} assessment records found. Commencing."
+		sleep (2)
 
-		# loop through the item stack and see if the item ids exist within the item_group of that assessment.
+		# global array for holding all the error messages found.
+		@error_messages = []
 
-
-	puts 'Commencing assessment consisistency checks.'
-	
-
-	all_assessments = Assessment.where("id = 5630048")
-
-	puts "#{all_assessments.count} assessment records found. Commencing."
-
-	sleep (2)
-	error_messages = []
-
-	all_assessments.each do |assessment|
-
-		## gets all items within item group
-		items_from_group = []
-		
-		groups = assessment.item_groups
-		groups.each do |group|
-			items_from_group << group.itemID
+		all_assessments.each do |assessment|
+			part1(assessment) # run assessment count check.
+			part2(assessment) # run duplicate items inside stack and group check
+			part3(assessment)
+			part4(assessment)
 		end
 
-		## gets all items with item stack
-		items_from_stack = []
-		stacks = assessment.stacks
+		puts @error_messages
+		puts "**** COMPLETED **** #{@error_messages.count} ERRORS."
 
-
-		stacks.each do |stack|
-			# check if an item  is linked to the stack.
-			# stacks can either be linked to items or content
-
-			if !stack.item.nil?
-				# stack is linked to an item. store this item id.
-				items_from_stack << stack.item.id
-			end
-
-		end
-
-		# finally we want to compare the counts to ensure the same amount of items exist within the
-		# assessment stack and the assessment groups.
-
-		if items_from_group.length != items_from_stack.length
-			puts items_from_group
-			puts '---'
-			puts items_from_stack
-			error_messages << "ASSESSMENT #{assessment.id} - COUNTS CHECK FAILED - Items in group: #{items_from_group.length}. Items in stack #{items_from_stack.length}."
-		end
-
-		## commence integrity checks
-		errors = 0
-
-		items_from_group.each  do  |groupitem|
-			if !items_from_stack.include? groupitem
-				error_messages << "ASSESSMENT #{assessment.id} - INTEGRITY CHECK FAILED - Item #{groupitem} does not exist in any assessment stack, but does exist in the group."
-			end
-		end
- 
-		items_from_stack.each do |stackitem| 
-			if !items_from_group.include? stackitem
-				error_messages << "ASSESSMENT #{assessment.id} - INTEGRITY CHECK FAILED - Item #{stackitem} does not exist in any assessment group, but does exist in the stack."
-			end
-		end
-
-		# ####### FIND DUPLICATES
-
-		# puts 'here'
-		# puts items_from_group.detect{ |e| items_from_group.count(e) > 1 }
-		# puts 'here'
-		# puts items_from_stack.detect{ |e| items_from_stack.count(e) > 1 }
-
-		# ## commence duplicate check
-		# if !items_from_stack.uniq.length == items_from_stack.length
-		# 	error_messages << "ASSESSMENT #{assessment.id} - DUPLICATE CHECK FAILED - Duplicate Items in the stack."
-		# end
-
-		# if !items_from_group.uniq.length == items_from_group.length
-		# 	error_messages << "ASSESSMENT #{assessment.id} - DUPLICATE CHECK FAILED - Duplicate Items in the group."
-		# end
-
-
-		######## CONSISTENCY CHECK
-
-		 answer_items = "21301,
-			21473,
-			21304,
-			21303,
-			21302,
-			21323,
-			21297,
-			21298,
-			21299,
-			21313,
-			21305,
-			21308,
-			21306,
-			21307,
-			21310,
-			21309,
-			21312,
-			21316,
-			21317,
-			21318,
-			21300,
-			21314,
-			21311,
-			21315,
-			21320,
-			21319,
-			21334,
-			21328,
-			21329,
-			21331,
-			21330,
-			21470,
-			21474,
-			21333,
-			21472,
-			21471,
-			21335,
-			21322,
-			21326,
-			21325,
-			21332"
-
-		final = answer_items.split(',')
-		## loop through all items in assessment.
-
-		# check if item is in final answer
-		final.each do |answer_item|
-			if !items_from_group.include? answer_item.to_i
-				error_messages << "ASSESSMENT #{assessment.id} - CONSISTENCY CHECK FAILED - Item #{answer_item} answer found but doesn't exist in the group."	
-			end
-		end
 	end
 
-	puts error_messages
+	def part1(assessment)
+
+		puts 'Commencing PART1 assessment consisistency checks.'
+
+		@items_from_group = []
+		
+		# gather all the itemIDs for the assessment via item_group link table.
+		assessment.item_groups.each do |group|
+			@items_from_group << group.itemID
+		end
+
+		# gather all the itemIDs for the assessment via stack link table.
+		@items_from_stack = []
+		stacks = assessment.stacks.includes(:item)
+
+		stacks.each do |stack|
+			# some stack items are linked to pieces of learning content, so we need to check for null.
+			if !stack.item.nil?
+				@items_from_stack << stack.item.id
+			end
+		end
+
+		# we have the itemIDs on both sides of the assessment, we now need to validate to see if there is the same 
+		# amount of itemIDs as in the stack and the group.
+
+		if @items_from_group.length != @items_from_stack.length
+			@error_messages << "ASSESSMENT #{assessment.id} - COUNTS CHECK FAILED - Items in group: #{@items_from_group.length}. Items in stack #{@items_from_stack.length}."
+		end
+
+	end
+
+	def part2(assessment)
+		
+		# here we are checking duplicate items inside the stack & inside the group.
+		# This first test is very important because if it fails it will almost certainly cause further errors with the assessment.
+
+		duplicate_stacks = @items_from_stack.find_all { |e| @items_from_stack.count(e) > 1 }
+		duplicate_group =@items_from_group.find_all { |e| @items_from_group.count(e) > 1 }
+
+		if duplicate_stacks.length > 0
+			@error_messages << "ASSESSMENT #{assessment.id} - DUPLICATE CHECK FAILED - Duplicate Items ((#{duplicate_stacks.count})) in the stack. (#{duplicate_stacks})"
+		end
+
+		if duplicate_group.length > 0
+			@error_messages << "ASSESSMENT #{assessment.id} - DUPLICATE CHECK FAILED - Duplicate Items (#{duplicate_group.count}) in the group.(#{duplicate_group})"
+		end
+
+	end
+
+	def part3(assessment)
+
+		# we have the itemIDs on both sides of the assessment, we now need to validate to see if the item id's
+		# match up between the stack and the groups. Its important these match up so that we can be sure
+		# the correct assessment items are being delivered to the student.
+
+		# Check from the group side
+
+		@items_from_group.each  do  |groupitem|
+			if !@items_from_stack.include? groupitem
+				@error_messages << "ASSESSMENT #{assessment.id} - INTEGRITY CHECK FAILED - Item #{groupitem} does not exist in any assessment stack, but does exist in the group."
+			end
+		end
+ 	
+		# Check from the stack side
+
+		@items_from_stack.each do |stackitem| 
+			if !@items_from_group.include? stackitem
+				@error_messages << "ASSESSMENT #{assessment.id} - INTEGRITY CHECK FAILED - Item #{stackitem} does not exist in any assessment group, but does exist in the stack."
+			end
+		end
+
+	end
+
+	def part4(assessment)
+
+		# takes 5 random completed assessments done by students and compares the itemIDs within their submissions
+		# to the itemIDs within the assessment stack.
+
+		enrolments = Enrol.where("assessmentID = #{assessment.id} AND finish IS NOT NULL")
+
+		items_in_submission = []
+
+		if enrolments.length > 0
+			
+			5.times do
+				# take a random enrolment 
+				enrolment = enrolments.sample
+				submissions = Submission.includes(:answer).where("assessmentID = #{assessment.id} AND lifeID = #{enrolment.lifeID}")
+
+				submissions.each do |s|
+					# not all submissions are for items (in old assessments), we check for null.
+					if s.answer
+						# add items into array if they aren't already in there
+						items_in_submission << s.answer.itemID unless items_in_submission.include? s.answer.itemID
+					end
+				end
+			end
+
+			# check if item exists within the current items in the stack.
+			items_in_submission.each do |answer_item|
+				if !@items_from_stack.include? answer_item.to_i
+					@error_messages << "ASSESSMENT #{assessment.id} - SUBMISSION LOOPBACK CHECK FAILED - Item #{answer_item} answer found in a students answer for this assessment but doesn't exist in the assessment stack."	
+				end
+			end
+		end
 
 	end	
 end

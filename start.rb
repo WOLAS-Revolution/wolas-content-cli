@@ -11,3 +11,4 @@ require './Assessment_consistency.rb'
 
 e = AssessmentConsistency.new
 e.commence
+
