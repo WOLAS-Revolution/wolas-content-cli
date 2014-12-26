@@ -1,9 +1,9 @@
 class ContentIntegrity
 
 	# require gems & libraries.
-	require 'yaml'
-	require 'active_record'
- 	require 'mysql2'
+	require 'yaml' #gem install yaml
+	require 'active_record' #gem install active_record
+ 	require 'mysql2' #gem install yaml
 	require 'net/http'
 
  	# require active record models.
