@@ -12,7 +12,7 @@ class AssessmentConsistency
  	require './models/answer.rb'
 
  	# expose the ActiveRecord operations to the command line so we can see how we are interfacing with our databases.
- 	ActiveRecord::Base.logger = Logger.new(STDOUT)
+ 	#ActiveRecord::Base.logger = Logger.new(STDOUT)
 
  	DB_CONFIG = YAML::load(File.open('./config/database.yml'))
 	ActiveRecord::Base.establish_connection("mysql2://#{DB_CONFIG['username']}:#{DB_CONFIG['password']}@#{DB_CONFIG['host']}:#{DB_CONFIG['port']}/#{DB_CONFIG['database']}")
@@ -26,7 +26,10 @@ class AssessmentConsistency
 		# global array for holding all the error messages found.
 		@error_messages = []
 
-		all_assessments.each do |assessment|
+		puts 'Running Tests'
+
+		all_assessments.each_with_index do |assessment,index|
+			puts "#{index + 1} out of #{all_assessments.count}"
 			part1(assessment) # run assessment count check.
 			part2(assessment) # run duplicate items inside stack and group check
 			part3(assessment)
@@ -39,8 +42,6 @@ class AssessmentConsistency
 	end
 
 	def part1(assessment)
-
-		puts 'Commencing PART1 assessment consisistency checks.'
 
 		@items_from_group = []
 		
@@ -116,15 +117,17 @@ class AssessmentConsistency
 		# takes 5 random completed assessments done by students and compares the itemIDs within their submissions
 		# to the itemIDs within the assessment stack.
 
-		enrolments = Enrol.where("assessmentID = #{assessment.id} AND finish IS NOT NULL")
+		enrolments = Enrol.where("assessmentID = #{assessment.id}")
 
 		items_in_submission = []
 
 		if enrolments.length > 0
 			
-			5.times do
+			# 10.times do
+
+			enrolments.each do |enrolment|
 				# take a random enrolment 
-				enrolment = enrolments.sample
+				#enrolment = enrolments.sample
 				submissions = Submission.includes(:answer).where("assessmentID = #{assessment.id} AND lifeID = #{enrolment.lifeID}")
 
 				submissions.each do |s|
@@ -135,6 +138,7 @@ class AssessmentConsistency
 					end
 				end
 			end
+			# end
 
 			# check if item exists within the current items in the stack.
 			items_in_submission.each do |answer_item|
