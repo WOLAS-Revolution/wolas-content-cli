@@ -60,7 +60,7 @@ files.each do |file|
 	random = SecureRandom.hex(8)
 	new_split = file_name.split('.')
 	ext = new_split[new_split.length - 1]
-	new_bucket_key = "#{life.studentID}/#{random}.#{ext}"
+	new_bucket_key = "portfolio/#{life.studentID}/#{random}.#{ext}"
 	puts OLD_BUCKET.inspect
 	puts old_bucket_key
 
