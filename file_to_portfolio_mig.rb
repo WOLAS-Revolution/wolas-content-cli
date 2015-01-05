@@ -22,7 +22,7 @@ AWS.config(YAML.load_file('./config/aws-s3.yml'))
 
 s3 = AWS::S3.new
 
-files = ClientFile.all.limit(5)
+files = ClientFile.all
 puts "#{files.length}"
 answer_ids = files.map do |file| file.answerID end.uniq
 
@@ -32,20 +32,20 @@ submission_ids = answers.map do |answer| answer.submissionID end.uniq
 item_ids = answers.map do |answer| answer.itemID end.uniq
 
 submissions = Submission.where(id: submission_ids)
-puts "#{submissions.length}"
 life_ids = submissions.map do |submission| submission.lifeID end.uniq
 
 lives = Life.where(id: life_ids)
-puts "#{lives.length}"
 
 items = Item.where(id: item_ids)
-puts "#{items.length}"
 
 OLD_BUCKET = s3.buckets["wolasuploads"]
 NEW_BUCKET = s3.buckets["t1uploads"]
 
 puts 'Commencing ...'
+
 count = 1
+non_existant = []
+
 files.each do |file|
 
 	answer = answers.select{ |a| a.id == file.answerID }[0]
@@ -57,27 +57,35 @@ files.each do |file|
 	file_name = file_split[file_split.length - 1]
 
 	old_bucket_key = "#{file.bucketKey}"
+
 	random = SecureRandom.hex(8)
 	new_split = file_name.split('.')
-	ext = new_split[new_split.length - 1]
-	new_bucket_key = "portfolio/#{life.studentID}/#{random}.#{ext}"
-	puts OLD_BUCKET.inspect
-	puts old_bucket_key
+	extension = new_split[new_split.length - 1]
+	new_bucket_key = "portfolio/#{life.studentID}/#{random}.#{extension}"
 
 	old_object = OLD_BUCKET.objects[old_bucket_key]
-	new_object = NEW_BUCKET.objects[new_bucket_key]
+	if !old_object.exists?
 
-	old_object.copy_to(new_object)
+		non_existant << { file_id: file.id, bucket_key: old_bucket_key }
 
-	portfolio = Portfolio.create(student_id: life.studentID, title: item.title,
-				caption: "Uploaded as evidence in support of competency for question: #{item.title}",
-				type: "Unknown", protected: true, thumbnail: "default.png", created: submission.date,
-				public: false, bucket_key: new_bucket_key)
+	else
+		new_object = NEW_BUCKET.objects[new_bucket_key]
 
-	PortfolioAnswer.create(answer_id: answer.id, portfolio_id: portfolio.id)
+		old_object.copy_to(new_object)
+
+		portfolio = Portfolio.create(student_id: life.studentID, title: item.title,
+					caption: "Uploaded as evidence in support of competency for question: #{item.title}",
+					type: "Unknown", protected: true, thumbnail: "default.png", created: submission.date,
+					public: false, bucket_key: new_bucket_key)
+
+		PortfolioAnswer.create(answer_id: answer.id, portfolio_id: portfolio.id)
 
 
-	puts "DONE #{count}/#{files.length}"
+		puts "DONE #{count}/#{files.length}"
+	end
 	count = count + 1
 end
 puts 'Finished'
+
+puts "array length #{non_existant.length}"
+puts non_existant
